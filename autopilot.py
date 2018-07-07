@@ -25,7 +25,7 @@ class autopilot:
 
 
     def takeoff(self,altitude):
-        if self.is_armed:
+        if self.is_connected and self.is_armed:
             self.autopilot.simple_takeoff(aTargetAltitude) # Take off to target altitude
             # Wait until the vehicle reaches a safe height before processing the goto (otherwise the command
             #  after Vehicle.simple_takeoff will execute immediately).
@@ -37,7 +37,7 @@ class autopilot:
                     break
                 time.sleep(1)
         else:
-            print 'Vehicle is NOT armed!ß'
+            print 'Vehicle is NOT armed!'
 
 
     def change_flight_mode(self,flight_mode_name):
@@ -52,9 +52,22 @@ class autopilot:
 
 
     def arm(self):
+        if self.autopilot is None:
+            print "There is NO connection with any vehicle!"
+            return
+
         if self.is_armed:
             print 'The vehicle is already armed!'
         else:
+            tick = 0
+            while not vehicle.is_armable:
+                if tick == 3:
+                    print "3 Secs passed and the drone is not armable!"
+                    return
+                print " Waiting for vehicle to initialise..."
+                time.sleep(1)
+                tick+=1
+            self.autopilot.armed = True
             self.is_armed = True
             #send mavlink packet
 
