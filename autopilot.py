@@ -1,4 +1,6 @@
 from dronekit import connect, VehicleMode
+from pymavlink import mavutil
+
 import time
 import mock
 
@@ -29,18 +31,7 @@ class autopilot:
     is_armed = False
 
     def __init__(self):
-
-
         self.autopilot = None
-        #
-        # global is_waiting_for_ack
-        # global ack_command_id
-        # global ack_command_result
-        # is_waiting_for_ack = False
-        # ack_command_id = None
-        # ack_command_result = None
-
-
 
     def connect(self,ip,port):
         # Connect to the Vehicle.
@@ -75,8 +66,6 @@ class autopilot:
                     is_armed = True
                 else:
                     is_armed = False
-                # print 'message: %s' % message
-                # print (message.base_mode & 0b10000000)
 
 
         else:
@@ -111,7 +100,7 @@ class autopilot:
                         break
                     time.sleep(1)
             elif ack_command_result==4 and self.autopilot.location.global_relative_frame.alt>1:
-                print 'The Vehicle is already above the ground!, use go_z command... '
+                print 'The Vehicle is already above the ground!, use move command... '
                 return
         else:
             print 'Vehicle is NOT armed!'
@@ -133,14 +122,13 @@ class autopilot:
                     tick+=1
                     time.sleep(0.5)
                     if tick>5:
-                        print 'CHANGE_FLIGHT_MODE Time Out!'
+                        print 'CHANGE_FLIGHT_MODE-',flight_mode_name,'-Time Out!'
                         return
-                print 'CHANGE_FLIGHT_MODE:',ACK_RESULT_TYPE[ack_command_result]
+                print 'CHANGE_FLIGHT_MODE:',flight_mode_name,' ',ACK_RESULT_TYPE[ack_command_result]
             else:
                 print 'The available flight modes: ',self.flight_modes
         else:
             print 'There is no connection with any vehicle!'
-
 
 
     def arm(self):
@@ -188,6 +176,32 @@ class autopilot:
             print 'DISARM: ',ACK_RESULT_TYPE[ack_command_result]
             #send mavlink packet
 
+
+    def move(self,velocity_x, velocity_y, velocity_z,duration):
+        """
+        Move vehicle in direction based on specified velocity vectors.
+        """
+        msg = self.autopilot.message_factory.set_position_target_local_ned_encode(
+            0,       # time_boot_ms (not used)
+            0, 0,    # target system, target component
+            mavutil.mavlink.MAV_FRAME_LOCAL_NED, # frame
+            0b0000111111000111, # type_mask (only speeds enabled)
+            0, 0, 0, # x, y, z positions (not used)
+            velocity_x, velocity_y, velocity_z, # x, y, z velocity in m/s
+            0, 0, 0, # x, y, z acceleration (not supported yet, ignored in GCS_Mavlink)
+            0, 0)    # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink)
+
+
+        # send command to vehicle on 1 Hz cycle
+        for x in range(0,duration):
+            self.autopilot.send_mavlink(msg)
+            time.sleep(1)
+
+    def land(self):
+        self.change_flight_mode('LAND')
+
+
+
 if __name__== "__main__":
 
     autopilot_vehicle = autopilot()
@@ -197,6 +211,8 @@ if __name__== "__main__":
     #
     autopilot_vehicle.arm()
     autopilot_vehicle.takeoff(3)
+    autopilot_vehicle.move(3,0,0,3)
+    autopilot_vehicle.land()
 
 
 
