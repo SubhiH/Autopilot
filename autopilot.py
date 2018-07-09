@@ -23,6 +23,23 @@ MAVLINK_COMMAND_ID = {'ARM/DISARM':400,
 
 
 class autopilot:
+    """autupilot class has many functions to connect and control the drone.
+
+    If the class has public attributes, they may be documented here
+    in an ``Attributes`` section and follow the same formatting as a
+    function's ``Args`` section. Alternatively, attributes may be documented
+    inline with the attribute's declaration (see __init__ method below).
+
+    Properties created with the ``@property`` decorator should be documented
+    in the property's getter method.
+
+    Attributes:
+        is_waiting_for_ack (boolean): boolean variable to manage the acknowledgment from the vehicle`.
+        ack_command_id (int): id of the command to wait for its acknowledgment`.
+        ack_command_result (int): id of the result type ACK_RESULT_TYPE`.
+        is_connected (boolean): flag to check if the vehicle is connected or not`.
+        is_armed (boolean): flag to check if the vehicle is armed or not`.
+    """
 
     is_waiting_for_ack = False
     ack_command_id = None
@@ -34,17 +51,22 @@ class autopilot:
         self.autopilot = None
 
     def connect(self,ip,port):
-        # Connect to the Vehicle.
+        """Starts a connection with a vehicle.
+        
+        Args:
+            ip (str): the ip for the vehicle like `127.0.0.1`.
+            port (int): the port for the vehicle like 14450
+        """
         global is_connected
         self.autopilot = connect(str(ip)+":"+str(port), wait_ready=True)
         if not self.autopilot is None:
             is_connected = True
 
-            '''
-            COMMAND_ACK
-            '''
+            """
+            Receives COMMAND_ACK mavlink packets
+            """
             @self.autopilot.on_message('COMMAND_ACK')
-            def listener(self, name, message):
+            def command_ack_listener(self, name, message):
                 global is_waiting_for_ack
                 global ack_command_id
                 global ack_command_result
@@ -56,11 +78,11 @@ class autopilot:
                         print 'message: %s' % message,message.command,ack_command_id
 
 
-            '''
-            HEARTBEAT
-            '''
+            """
+            Receives HEARTBEAT mavlink packets
+            """
             @self.autopilot.on_message('HEARTBEAT')
-            def listener(self, name, message):
+            def heartbeat_listener(self, name, message):
                 global is_armed
                 if (message.base_mode & 0b10000000)==128:
                     is_armed = True
@@ -73,6 +95,15 @@ class autopilot:
 
 
     def takeoff(self,altitude):
+        """Sends takeoff command to connected vehicle.
+        Takeooff will fail in any of these situations:
+            1.  There is no connection with a vehicle.
+            2.  The vehicle is disarmed.
+            3.  The vehicle is already above the ground.
+
+        Args:
+            altitude (str): the target altitude.
+        """
         global is_connected
         global is_armed
         global is_waiting_for_ack
@@ -107,6 +138,12 @@ class autopilot:
 
 
     def change_flight_mode(self,flight_mode_name):
+        """Changes the flight mode for the connected Vehicle.
+        change_flight_mode will fail of there is no connection with a vehicle.
+
+        Args:
+            flight_mode_name (str): the name of flight_mode.
+        """
         global is_connected
         global is_armed
         global is_waiting_for_ack
@@ -132,12 +169,15 @@ class autopilot:
 
 
     def arm(self):
+        """arms/turns on the motors.
+        arm will fail of there is no connection with a vehicle.
+        """
         global is_connected
         global is_armed
         global is_waiting_for_ack
         global ack_command_id
         global ack_command_result
-        if self.autopilot is None:
+        if self.autopilot is None or not is_connected:
             print "There is NO connection with any vehicle!"
             return
 
@@ -159,6 +199,9 @@ class autopilot:
             print 'ARM: ',ACK_RESULT_TYPE[ack_command_result]
 
     def disarm(self):
+        """disarms/turns off the motors.
+        disarm will fail of there is no connection with a vehicle.
+        """
         if not self.is_armed:
             print 'The vehicle is already disarmed!'
         else:
@@ -180,6 +223,12 @@ class autopilot:
     def move(self,velocity_x, velocity_y, velocity_z,duration):
         """
         Move vehicle in direction based on specified velocity vectors.
+
+        Args:
+            velocity_x (float): velocity on x-axis. Positive value will move the vehicle to right and negative to left.
+            velocity_y (float): velocity on y-axis. Positive value will move the vehicle to front and negative to back.
+            velocity_z (float): velocity on z-axis. Positive value will move the vehicle to down and negative to up.
+            duration (int): the total time to send command to vehicle on 1 Hz cycle.
         """
         msg = self.autopilot.message_factory.set_position_target_local_ned_encode(
             0,       # time_boot_ms (not used)
