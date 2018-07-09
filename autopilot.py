@@ -25,14 +25,6 @@ MAVLINK_COMMAND_ID = {'ARM/DISARM':400,
 class autopilot:
     """autupilot class has many functions to connect and control the drone.
 
-    If the class has public attributes, they may be documented here
-    in an ``Attributes`` section and follow the same formatting as a
-    function's ``Args`` section. Alternatively, attributes may be documented
-    inline with the attribute's declaration (see __init__ method below).
-
-    Properties created with the ``@property`` decorator should be documented
-    in the property's getter method.
-
     Attributes:
         is_waiting_for_ack (boolean): boolean variable to manage the acknowledgment from the vehicle`.
         ack_command_id (int): id of the command to wait for its acknowledgment`.
