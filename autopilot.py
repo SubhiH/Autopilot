@@ -1,6 +1,4 @@
 from dronekit import connect, VehicleMode
-from pymavlink import mavutil
-
 import time
 import mock
 
@@ -38,27 +36,31 @@ class autopilot:
     ack_command_result = None
     is_connected = False
     is_armed = False
+    global feed_back_stack
+    feed_back_stack = []
 
     def __init__(self):
         self.autopilot = None
 
     def connect(self,ip,port):
         """Starts a connection with a vehicle.
-        
+
         Args:
             ip (str): the ip for the vehicle like `127.0.0.1`.
             port (int): the port for the vehicle like 14450
         """
+        global feed_back_stack
         global is_connected
         self.autopilot = connect(str(ip)+":"+str(port), wait_ready=True)
         if not self.autopilot is None:
             is_connected = True
+            feed_back_stack.insert(0,'connected to vehicle with '+str(ip)+':'+str(port))
 
-            """
+            '''
             Receives COMMAND_ACK mavlink packets
-            """
+            '''
             @self.autopilot.on_message('COMMAND_ACK')
-            def command_ack_listener(self, name, message):
+            def listener(self, name, message):
                 global is_waiting_for_ack
                 global ack_command_id
                 global ack_command_result
@@ -70,16 +72,18 @@ class autopilot:
                         print 'message: %s' % message,message.command,ack_command_id
 
 
-            """
+            '''
             Receives HEARTBEAT mavlink packets
-            """
+            '''
             @self.autopilot.on_message('HEARTBEAT')
-            def heartbeat_listener(self, name, message):
+            def listener(self, name, message):
                 global is_armed
                 if (message.base_mode & 0b10000000)==128:
                     is_armed = True
                 else:
                     is_armed = False
+                # print 'message: %s' % message
+                # print (message.base_mode & 0b10000000)
 
 
         else:
@@ -101,6 +105,7 @@ class autopilot:
         global is_waiting_for_ack
         global ack_command_id
         global ack_command_result
+        global feed_back_stack
         if is_connected and is_armed:
             tick = 0
             is_waiting_for_ack = True
@@ -110,22 +115,27 @@ class autopilot:
                 tick+=1
                 time.sleep(0.5)
                 if tick>5:
+                    feed_back_stack.insert(0,'TAKEOFF Time Out ')
                     print 'TAKEOFF Time Out!'
                     return
             print 'TAKEOFF: ',ACK_RESULT_TYPE[ack_command_result]
 
             if ack_command_result==0:
                 while True:
+                    feed_back_stack.insert(0," Altitude: "+str(self.autopilot.location.global_relative_frame.alt))
                     print " Altitude: ", self.autopilot.location.global_relative_frame.alt
                     #Break and return from function just below target altitude.
                     if self.autopilot.location.global_relative_frame.alt>=altitude*0.95:
+                        feed_back_stack.insert(0,'Reached target altitude ')
                         print "Reached target altitude"
                         break
                     time.sleep(1)
             elif ack_command_result==4 and self.autopilot.location.global_relative_frame.alt>1:
-                print 'The Vehicle is already above the ground!, use move command... '
+                feed_back_stack.insert(0,'The Vehicle is already above the ground!, use go_z command... ')
+                print 'The Vehicle is already above the ground!, use go_z command... '
                 return
         else:
+            feed_back_stack.insert(0,'Vehicle is NOT armed ')
             print 'Vehicle is NOT armed!'
 
 
@@ -141,6 +151,7 @@ class autopilot:
         global is_waiting_for_ack
         global ack_command_id
         global ack_command_result
+        global feed_back_stack
         if is_connected:
             if flight_mode_name.upper() in FLIGHT_MODES:
                 tick = 0
@@ -151,13 +162,18 @@ class autopilot:
                     tick+=1
                     time.sleep(0.5)
                     if tick>5:
-                        print 'CHANGE_FLIGHT_MODE-',flight_mode_name,'-Time Out!'
+                        print 'CHANGE_FLIGHT_MODE Time Out!'
+                        feed_back_stack.insert(0,'CHANGE_FLIGHT_MODE Time Out ')
                         return
-                print 'CHANGE_FLIGHT_MODE:',flight_mode_name,' ',ACK_RESULT_TYPE[ack_command_result]
+                print 'CHANGE_FLIGHT_MODE:',ACK_RESULT_TYPE[ack_command_result]
+                feed_back_stack.insert(0,'CHANGE_FLIGHT_MODE:'+str(ACK_RESULT_TYPE[ack_command_result]))
             else:
+                feed_back_stack.insert(0,'The available flight modes:'+str(self.flight_modes))
                 print 'The available flight modes: ',self.flight_modes
         else:
+            feed_back_stack.insert(0,'There is no connection with any vehicle!')
             print 'There is no connection with any vehicle!'
+
 
 
     def arm(self):
@@ -169,12 +185,15 @@ class autopilot:
         global is_waiting_for_ack
         global ack_command_id
         global ack_command_result
-        if self.autopilot is None or not is_connected:
+        global feed_back_stack
+        if self.autopilot is None:
             print "There is NO connection with any vehicle!"
+            feed_back_stack.insert(0,'There is NO connection with any vehicle!')
             return
 
         if is_armed:
             print 'The vehicle is already armed!'
+            feed_back_stack.insert(0,'The vehicle is already armed!')
         else:
             tick = 0
             is_waiting_for_ack = True
@@ -185,10 +204,12 @@ class autopilot:
                 time.sleep(0.5)
                 if tick>5:
                     print 'Time Out!'
+                    feed_back_stack.insert(0,'Arm Time Out!')
                     return
             if ack_command_result==0:
                 is_armed = True
             print 'ARM: ',ACK_RESULT_TYPE[ack_command_result]
+            feed_back_stack.insert(0,'ARM: '+str(ACK_RESULT_TYPE[ack_command_result]))
 
     def disarm(self):
         """disarms/turns off the motors.
@@ -211,49 +232,23 @@ class autopilot:
             print 'DISARM: ',ACK_RESULT_TYPE[ack_command_result]
             #send mavlink packet
 
-
-    def move(self,velocity_x, velocity_y, velocity_z,duration):
-        """
-        Move vehicle in direction based on specified velocity vectors.
-
-        Args:
-            velocity_x (float): velocity on x-axis. Positive value will move the vehicle to right and negative to left.
-            velocity_y (float): velocity on y-axis. Positive value will move the vehicle to front and negative to back.
-            velocity_z (float): velocity on z-axis. Positive value will move the vehicle to down and negative to up.
-            duration (int): the total time to send command to vehicle on 1 Hz cycle.
-        """
-        msg = self.autopilot.message_factory.set_position_target_local_ned_encode(
-            0,       # time_boot_ms (not used)
-            0, 0,    # target system, target component
-            mavutil.mavlink.MAV_FRAME_LOCAL_NED, # frame
-            0b0000111111000111, # type_mask (only speeds enabled)
-            0, 0, 0, # x, y, z positions (not used)
-            velocity_x, velocity_y, velocity_z, # x, y, z velocity in m/s
-            0, 0, 0, # x, y, z acceleration (not supported yet, ignored in GCS_Mavlink)
-            0, 0)    # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink)
-
-
-        # send command to vehicle on 1 Hz cycle
-        for x in range(0,duration):
-            self.autopilot.send_mavlink(msg)
-            time.sleep(1)
-
-    def land(self):
-        self.change_flight_mode('LAND')
-
-
+    def pop_from_feedback_stack(self):
+        global feed_back_stack
+        if len(feed_back_stack)>0:
+            return feed_back_stack.pop()
+        else:
+            return None
 
 if __name__== "__main__":
 
     autopilot_vehicle = autopilot()
     autopilot_vehicle.connect('127.0.0.1',14559)
     #
+    print autopilot_vehicle.pop_from_feedback_stack
     autopilot_vehicle.change_flight_mode('guided')
     #
     autopilot_vehicle.arm()
     autopilot_vehicle.takeoff(3)
-    autopilot_vehicle.move(3,0,0,3)
-    autopilot_vehicle.land()
 
 
 
