@@ -19,7 +19,12 @@ MAVLINK_COMMAND_ID = {'ARM/DISARM':400,
                         'TAKEOFF':22,
                         'CHANGE_FLIGHT_MODE':11}
 
-
+is_waiting_for_ack = False
+ack_command_id = None
+ack_command_result = None
+is_connected = False
+is_armed = False
+feed_back_stack = []
 class autopilot:
     """autupilot class has many functions to connect and control the drone.
 
@@ -31,13 +36,7 @@ class autopilot:
         is_armed (boolean): flag to check if the vehicle is armed or not`.
     """
 
-    is_waiting_for_ack = False
-    ack_command_id = None
-    ack_command_result = None
-    is_connected = False
-    is_armed = False
-    global feed_back_stack
-    feed_back_stack = []
+
 
     def __init__(self):
         self.autopilot = None
@@ -49,8 +48,8 @@ class autopilot:
             ip (str): the ip for the vehicle like `127.0.0.1`.
             port (int): the port for the vehicle like 14450
         """
-        global feed_back_stack
         global is_connected
+        global feed_back_stack
         self.autopilot = connect(str(ip)+":"+str(port), wait_ready=True)
         if not self.autopilot is None:
             is_connected = True
@@ -60,7 +59,7 @@ class autopilot:
             Receives COMMAND_ACK mavlink packets
             '''
             @self.autopilot.on_message('COMMAND_ACK')
-            def listener(self, name, message):
+            def listener_ack(self, name, message):
                 global is_waiting_for_ack
                 global ack_command_id
                 global ack_command_result
@@ -76,7 +75,7 @@ class autopilot:
             Receives HEARTBEAT mavlink packets
             '''
             @self.autopilot.on_message('HEARTBEAT')
-            def listener(self, name, message):
+            def listener_heartbeat(self, name, message):
                 global is_armed
                 if (message.base_mode & 0b10000000)==128:
                     is_armed = True
