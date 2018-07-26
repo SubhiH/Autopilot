@@ -216,6 +216,7 @@ class autopilot:
         disarm will fail of there is no connection with a vehicle.
         """
         global is_armed
+        global ack_command_id
         if not is_armed:
             print 'The vehicle is already disarmed!'
         else:
