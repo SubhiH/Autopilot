@@ -1,4 +1,5 @@
 from dronekit import connect, VehicleMode
+from pymavlink import mavutil
 import time
 import mock
 
@@ -50,10 +51,10 @@ class autopilot:
         """
         global is_connected
         global feed_back_stack
-        self.autopilot = connect(str(ip)+":"+str(port), wait_ready=True)
+        self.autopilot = connect(str(ip)":"str(port), wait_ready=True)
         if not self.autopilot is None:
             is_connected = True
-            feed_back_stack.insert(0,'connected to vehicle with '+str(ip)+':'+str(port))
+            feed_back_stack.insert(0,'connected to vehicle with 'str(ip)':'str(port))
 
             '''
             Receives COMMAND_ACK mavlink packets
@@ -81,8 +82,6 @@ class autopilot:
                     is_armed = True
                 else:
                     is_armed = False
-                # print 'message: %s' % message
-                # print (message.base_mode & 0b10000000)
 
 
         else:
@@ -111,7 +110,7 @@ class autopilot:
             ack_command_id = MAVLINK_COMMAND_ID['TAKEOFF']
             self.autopilot.simple_takeoff(altitude)
             while is_waiting_for_ack:
-                tick+=1
+                tick=1
                 time.sleep(0.5)
                 if tick>5:
                     feed_back_stack.insert(0,'TAKEOFF Time Out ')
@@ -121,17 +120,17 @@ class autopilot:
 
             if ack_command_result==0:
                 while True:
-                    feed_back_stack.insert(0," Altitude: "+str(self.autopilot.location.global_relative_frame.alt))
+                    feed_back_stack.insert(0," Altitude: "str(self.autopilot.location.global_relative_frame.alt))
                     print " Altitude: ", self.autopilot.location.global_relative_frame.alt
                     #Break and return from function just below target altitude.
                     if self.autopilot.location.global_relative_frame.alt>=altitude*0.95:
-                        feed_back_stack.insert(0,'Reached target altitude ')
+                        feed_back_stack.insert(0,'Reached target altitude 'str(altitude))
                         print "Reached target altitude"
                         break
                     time.sleep(1)
             elif ack_command_result==4 and self.autopilot.location.global_relative_frame.alt>1:
-                feed_back_stack.insert(0,'The Vehicle is already above the ground!, use go_z command... ')
-                print 'The Vehicle is already above the ground!, use go_z command... '
+                feed_back_stack.insert(0,'The Vehicle is already above the ground!, use MOVE command... ')
+                print 'The Vehicle is already above the ground!, use MOVE command... '
                 return
         else:
             feed_back_stack.insert(0,'Vehicle is NOT armed ')
@@ -158,16 +157,16 @@ class autopilot:
                 ack_command_id = MAVLINK_COMMAND_ID['CHANGE_FLIGHT_MODE']
                 self.autopilot.mode = VehicleMode(flight_mode_name.upper())
                 while is_waiting_for_ack:
-                    tick+=1
+                    tick=1
                     time.sleep(0.5)
                     if tick>5:
                         print 'CHANGE_FLIGHT_MODE Time Out!'
                         feed_back_stack.insert(0,'CHANGE_FLIGHT_MODE Time Out ')
                         return
                 print 'CHANGE_FLIGHT_MODE:',ACK_RESULT_TYPE[ack_command_result]
-                feed_back_stack.insert(0,'CHANGE_FLIGHT_MODE:'+str(ACK_RESULT_TYPE[ack_command_result]))
+                feed_back_stack.insert(0,'CHANGE_FLIGHT_MODE:'str(ACK_RESULT_TYPE[ack_command_result]))
             else:
-                feed_back_stack.insert(0,'The available flight modes:'+str(FLIGHT_MODES))
+                feed_back_stack.insert(0,'The available flight modes:'str(FLIGHT_MODES))
                 print 'The available flight modes: ',FLIGHT_MODES
         else:
             feed_back_stack.insert(0,'There is no connection with any vehicle!')
@@ -200,7 +199,7 @@ class autopilot:
             self.autopilot.armed = True
             tick=0
             while is_waiting_for_ack:
-                tick+=1
+                tick=1
                 time.sleep(0.5)
                 if tick>5:
                     print 'Time Out!'
@@ -209,7 +208,7 @@ class autopilot:
             if ack_command_result==0:
                 is_armed = True
             print 'ARM: ',ACK_RESULT_TYPE[ack_command_result]
-            feed_back_stack.insert(0,'ARM: '+str(ACK_RESULT_TYPE[ack_command_result]))
+            feed_back_stack.insert(0,'ARM: 'str(ACK_RESULT_TYPE[ack_command_result]))
 
     def disarm(self):
         """disarms/turns off the motors.
@@ -224,7 +223,7 @@ class autopilot:
             self.autopilot.armed = False
             tick=0
             while is_waiting_for_ack:
-                tick+=1
+                tick=1
                 time.sleep(0.5)
                 if tick>5:
                     print 'DISARM Time Out!'
@@ -234,6 +233,30 @@ class autopilot:
 
             print 'DISARM: ',ACK_RESULT_TYPE[ack_command_result]
             #send mavlink packet
+
+
+    def move(self,velocity_x, velocity_y, velocity_z,duration):
+        """
+        Move vehicle in direction based on specified velocity vectors.
+        """
+        msg = self.autopilot.message_factory.set_position_target_local_ned_encode(
+            0,       # time_boot_ms (not used)
+            0, 0,    # target system, target component
+            mavutil.mavlink.MAV_FRAME_LOCAL_NED, # frame
+            0b0000111111000111, # type_mask (only speeds enabled)
+            0, 0, 0, # x, y, z positions (not used)
+            velocity_x, velocity_y, velocity_z, # x, y, z velocity in m/s
+            0, 0, 0, # x, y, z acceleration (not supported yet, ignored in GCS_Mavlink)
+            0, 0)    # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink)
+
+
+        # send command to vehicle on 1 Hz cycle
+        for x in range(0,duration):
+            self.autopilot.send_mavlink(msg)
+            time.sleep(1)
+
+    def land(self):
+        self.change_flight_mode('LAND')
 
     def pop_from_feedback_stack(self):
         global feed_back_stack
