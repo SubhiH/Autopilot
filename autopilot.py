@@ -167,8 +167,8 @@ class autopilot:
                 print 'CHANGE_FLIGHT_MODE:',ACK_RESULT_TYPE[ack_command_result]
                 feed_back_stack.insert(0,'CHANGE_FLIGHT_MODE:'+str(ACK_RESULT_TYPE[ack_command_result]))
             else:
-                feed_back_stack.insert(0,'The available flight modes:'+str(self.flight_modes))
-                print 'The available flight modes: ',self.flight_modes
+                feed_back_stack.insert(0,'The available flight modes:'+str(FLIGHT_MODES))
+                print 'The available flight modes: ',FLIGHT_MODES
         else:
             feed_back_stack.insert(0,'There is no connection with any vehicle!')
             print 'There is no connection with any vehicle!'
@@ -198,6 +198,7 @@ class autopilot:
             is_waiting_for_ack = True
             ack_command_id = MAVLINK_COMMAND_ID['ARM/DISARM']
             self.autopilot.armed = True
+            tick=0
             while is_waiting_for_ack:
                 tick+=1
                 time.sleep(0.5)
@@ -214,11 +215,13 @@ class autopilot:
         """disarms/turns off the motors.
         disarm will fail of there is no connection with a vehicle.
         """
-        if not self.is_armed:
+        global is_armed
+        if not is_armed:
             print 'The vehicle is already disarmed!'
         else:
             ack_command_id = MAVLINK_COMMAND_ID['ARM/DISARM']
             self.autopilot.armed = False
+            tick=0
             while is_waiting_for_ack:
                 tick+=1
                 time.sleep(0.5)
