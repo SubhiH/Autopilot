@@ -51,10 +51,10 @@ class autopilot:
         """
         global is_connected
         global feed_back_stack
-        self.autopilot = connect(str(ip)":"str(port), wait_ready=True)
+        self.autopilot = connect(str(ip)+":"+str(port), wait_ready=True)
         if not self.autopilot is None:
             is_connected = True
-            feed_back_stack.insert(0,'connected to vehicle with 'str(ip)':'str(port))
+            feed_back_stack.insert(0,'connected to vehicle with '+str(ip)+':'+str(port))
 
             '''
             Receives COMMAND_ACK mavlink packets
@@ -120,11 +120,11 @@ class autopilot:
 
             if ack_command_result==0:
                 while True:
-                    feed_back_stack.insert(0," Altitude: "str(self.autopilot.location.global_relative_frame.alt))
+                    feed_back_stack.insert(0," Altitude: "+str(self.autopilot.location.global_relative_frame.alt))
                     print " Altitude: ", self.autopilot.location.global_relative_frame.alt
                     #Break and return from function just below target altitude.
                     if self.autopilot.location.global_relative_frame.alt>=altitude*0.95:
-                        feed_back_stack.insert(0,'Reached target altitude 'str(altitude))
+                        feed_back_stack.insert(0,'Reached target altitude '+str(altitude))
                         print "Reached target altitude"
                         break
                     time.sleep(1)
@@ -164,9 +164,9 @@ class autopilot:
                         feed_back_stack.insert(0,'CHANGE_FLIGHT_MODE Time Out ')
                         return
                 print 'CHANGE_FLIGHT_MODE:',ACK_RESULT_TYPE[ack_command_result]
-                feed_back_stack.insert(0,'CHANGE_FLIGHT_MODE:'str(ACK_RESULT_TYPE[ack_command_result]))
+                feed_back_stack.insert(0,'CHANGE_FLIGHT_MODE:'+str(ACK_RESULT_TYPE[ack_command_result]))
             else:
-                feed_back_stack.insert(0,'The available flight modes:'str(FLIGHT_MODES))
+                feed_back_stack.insert(0,'The available flight modes:'+str(FLIGHT_MODES))
                 print 'The available flight modes: ',FLIGHT_MODES
         else:
             feed_back_stack.insert(0,'There is no connection with any vehicle!')
@@ -208,7 +208,7 @@ class autopilot:
             if ack_command_result==0:
                 is_armed = True
             print 'ARM: ',ACK_RESULT_TYPE[ack_command_result]
-            feed_back_stack.insert(0,'ARM: 'str(ACK_RESULT_TYPE[ack_command_result]))
+            feed_back_stack.insert(0,'ARM: '+str(ACK_RESULT_TYPE[ack_command_result]))
 
     def disarm(self):
         """disarms/turns off the motors.
