@@ -29,3 +29,8 @@ Simple Autopilt built using dronekit and MAVLink protocol
 
 ### Note :
 Please contribute :pray: :pray:
+
+
+## License
+
+Autopilot is released under the Apache license. See [LICENSE](https://github.com/SubhiH/Autopilot/edit/master/LICENSE) for more information.
