@@ -1,5 +1,9 @@
 # Autopilot :helicopter: 
 
+[![Flight Stack](https://img.shields.io/badge/Flight%20Stack-Ardupilot-blue.svg)](http://ardupilot.org)
+[![Python](https://img.shields.io/badge/Python-2.7-red.svg)](https://docs.python.org/release/2.7.15/)
+
+
 Simple Autopilt built using dronekit and MAVLink protocol 
 1.  Compatible with Ardupilot and PX4.
 2.  It is used to build the drone controller module for [**HandGesturesDroneController**](https://github.com/SubhiH/HandGesturesDroneController) project :raised_hand: :open_hands:  :point_up: :point_up_2: :raising_hand:.
